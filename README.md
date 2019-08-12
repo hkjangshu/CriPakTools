@@ -1,7 +1,8 @@
 CriPakTools-mod
 ===========
-This tool is based on code by Falo , Nanashi3 ,esperknight and uyjulian
-I forked and added more features.
+This tool is based on code by Falo , Nanashi3 ,esperknight and uyjulian. 
+
+I forked and added more features in the *NEW* GUI Version. 
 
 * Add Shift-JIS support for CPK files.
 * Support 2GB+ CPK for PS3.
