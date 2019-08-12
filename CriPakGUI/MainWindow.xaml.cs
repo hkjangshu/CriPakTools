@@ -4,14 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 using System.Diagnostics;
-using System.Windows.Shapes;
 using System.IO;
 using Ookii.Dialogs.Wpf;
 using System.Threading;
@@ -36,7 +31,8 @@ namespace CriPakGUI
             menu_savefiles.IsEnabled = false;
             menu_importAssets.IsEnabled = false;
             progressbar0.Maximum = 100;
-            myPackage.basePath = @"C:/";
+            MainApp.Instance.currentPackage.BasePath = @"C:/";
+            this.Title = string.Format( $"CRIWARE CPK GUI ({MainApp.BuildTime})");
         }
         private void menu_openfile_Click(object sender, RoutedEventArgs e)
         {
@@ -53,14 +49,20 @@ namespace CriPakGUI
                 fName = openFileDialog.FileName;
                 baseName = System.IO.Path.GetFileName(fName);
                 status_cpkname.Content = baseName;
-                beginLoadCPK(fName);
                 button_extract.IsEnabled = true;
                 button_importassets.IsEnabled = true;
-                
+                BeginLoadCPKAsync(fName, () =>
+                {
+                    CpkWrapper cpk = new CpkWrapper(fName);
+                    status_cpkmsg.Content = string.Format("{0} file(s) registered.", cpk.nums);
+                    datagrid_cpk.ItemsSource = cpk.table;
+                    menu_importAssets.IsEnabled = true;
+                    menu_savefiles.IsEnabled = true;
+                });
             }
         }
 
-        private void beginLoadCPK(string fName)
+        private void BeginLoadCPKAsync(string fName, Action onComplete)
         {
             ThreadPool.QueueUserWorkItem(o =>
             {
@@ -68,18 +70,13 @@ namespace CriPakGUI
                     DispatcherPriority.SystemIdle,
                     new Action(() =>
                     {
-                        cpkwrapper cpk = new cpkwrapper(fName);
-                        status_cpkmsg.Content = string.Format("{0} file(s) registered.", cpk.nums);
-                        datagrid_cpk.ItemsSource = cpk.table;
-
-                        menu_importAssets.IsEnabled = true;
-                        menu_savefiles.IsEnabled = true;
-                        myPackage.basePath = System.IO.Path.GetDirectoryName(fName);
-                        myPackage.baseName = System.IO.Path.GetFileName(fName);
-                        myPackage.fileName = fName;
-                    } )
+                        MainApp.Instance.currentPackage.BasePath = System.IO.Path.GetDirectoryName(fName);
+                        MainApp.Instance.currentPackage.BaseName = System.IO.Path.GetFileName(fName);
+                        MainApp.Instance.currentPackage.FileName = fName;
+                        onComplete?.Invoke();
+                    })
                );
-            });  
+            });
         }
 
 
@@ -109,30 +106,41 @@ namespace CriPakGUI
         private void menu_savefiles_Click(object sender, RoutedEventArgs e)
         {
             VistaFolderBrowserDialog saveFilesDialog = new VistaFolderBrowserDialog();
-            saveFilesDialog.SelectedPath = myPackage.basePath;
+            saveFilesDialog.SelectedPath = MainApp.Instance.currentPackage.BasePath;
             if (saveFilesDialog.ShowDialog().Value)
             {
-                Debug.Print(saveFilesDialog.SelectedPath + "/" + myPackage.baseName + "_unpacked");
+                Debug.Print(saveFilesDialog.SelectedPath + "/" + MainApp.Instance.currentPackage.BaseName + "_unpacked");
                 ThreadPool.QueueUserWorkItem(new WaitCallback(beginExtractCPK), saveFilesDialog.SelectedPath);
-                
+
             }
 
         }
 
-        private void beginExtractCPK(object foutDir)
+        private void beginExtractCPK(object fOutDir)
+        {
+            try
+            {
+                beginExtractCPK_internal(fOutDir);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(string.Format($"An Error occured while extract cpk.\n {ex.Message}"));
+            }
+        }
+        private void beginExtractCPK_internal(object fOutDir)
         {
             string outDir;
-            outDir = (string)(foutDir + "/" + myPackage.baseName + "_unpacked");
-            if (myPackage.cpk != null)
+            outDir = (string)(fOutDir + "/" + MainApp.Instance.currentPackage.BaseName + "_unpacked");
+            if (MainApp.Instance.currentPackage.CpkContent != null)
             {
                 if (!Directory.Exists(outDir))
                 {
                     Directory.CreateDirectory(outDir);
                 }
-                BinaryReader oldFile = new BinaryReader(File.OpenRead(myPackage.cpk_name));
+                BinaryReader oldFile = new BinaryReader(File.OpenRead(MainApp.Instance.currentPackage.CpkContentName));
                 List<FileEntry> entries = null;
 
-                entries = myPackage.cpk.FileTable.Where(x => x.FileType == "FILE").ToList();
+                entries = MainApp.Instance.currentPackage.CpkContent.FileTable.Where(x => x.FileType == "FILE").ToList();
 
                 if (entries.Count == 0)
                 {
@@ -157,7 +165,7 @@ namespace CriPakGUI
                     }
 
                     id = Convert.ToInt32(entries[i].ID);
-                    if (id > 0 &&　bFileRepeated)
+                    if (id > 0 && bFileRepeated)
                     {
                         currentName = (((entries[i].DirName != null) ?
                                         entries[i].DirName + "/" : "") + string.Format("[{0}]", id.ToString()) + entries[i].FileName);
@@ -182,7 +190,7 @@ namespace CriPakGUI
 
                         if (size != 0)
                         {
-                            chunk = myPackage.cpk.DecompressLegacyCRI(chunk, size);
+                            chunk = MainApp.Instance.currentPackage.CpkContent.DecompressLegacyCRI(chunk, size);
                         }
                     }
 
@@ -214,10 +222,10 @@ namespace CriPakGUI
         private void button_extract_Click(object sender, RoutedEventArgs e)
         {
             VistaFolderBrowserDialog saveFilesDialog = new VistaFolderBrowserDialog();
-            saveFilesDialog.SelectedPath = myPackage.basePath + "/";
+            saveFilesDialog.SelectedPath = MainApp.Instance.currentPackage.BasePath + "/";
             if (saveFilesDialog.ShowDialog().Value)
             {
-                Debug.Print(saveFilesDialog.SelectedPath + "/" + myPackage.baseName + "_unpacked");
+                Debug.Print(saveFilesDialog.SelectedPath + "/" + MainApp.Instance.currentPackage.BaseName + "_unpacked");
                 ThreadPool.QueueUserWorkItem(new WaitCallback(beginExtractCPK), saveFilesDialog.SelectedPath);
 
             }
@@ -252,15 +260,15 @@ namespace CriPakGUI
         }
         private void dgitem1_Click(object sender, RoutedEventArgs e)
         {
-            
+
             CPKTable t = this.datagrid_cpk.SelectedItem as CPKTable;
             if (t != null)
             {
                 if (t.FileSize > 0 && t.FileType == "FILE")
                 {
                     VistaSaveFileDialog saveFilesDialog = new VistaSaveFileDialog();
-                    saveFilesDialog.InitialDirectory = myPackage.basePath ;
-                    saveFilesDialog.FileName = myPackage.basePath + "/" + t._localName;
+                    saveFilesDialog.InitialDirectory = MainApp.Instance.currentPackage.BasePath;
+                    saveFilesDialog.FileName = MainApp.Instance.currentPackage.BasePath + "/" + t.LocalName;
                     if (saveFilesDialog.ShowDialog().Value)
                     {
                         byte[] chunk = ExtractItem(t);
@@ -268,10 +276,10 @@ namespace CriPakGUI
                         File.WriteAllBytes(saveFilesDialog.FileName, chunk);
                         MessageBox.Show(String.Format("Decompress to :{0}", saveFilesDialog.FileName));
                     }
-                    
-                } 
+
+                }
             }
-            
+
         }
 
         private void dgitem2_Click(object sender, RoutedEventArgs e)
@@ -282,7 +290,7 @@ namespace CriPakGUI
         private byte[] ExtractItem(CPKTable t)
         {
             CPKTable entries = t as CPKTable;
-            BinaryReader oldFile = new BinaryReader(File.OpenRead(myPackage.cpk_name));
+            BinaryReader oldFile = new BinaryReader(File.OpenRead(MainApp.Instance.currentPackage.CpkContentName));
             oldFile.BaseStream.Seek((long)entries.FileOffset, SeekOrigin.Begin);
 
             string isComp = Encoding.ASCII.GetString(oldFile.ReadBytes(8));
@@ -304,7 +312,7 @@ namespace CriPakGUI
 
                 if (size != 0)
                 {
-                    chunk = myPackage.cpk.DecompressLegacyCRI(chunk, size);
+                    chunk = MainApp.Instance.currentPackage.CpkContent.DecompressLegacyCRI(chunk, size);
                 }
             }
             oldFile.Close();
@@ -327,29 +335,33 @@ namespace CriPakGUI
             switch (cur)
             {
                 case 0:
-                    current_codepage = Encoding.GetEncoding(65001);
+                    current_codepage = Encoding.GetEncoding((int)PackageEncodings.UTF_8);
                     break;
                 case 1:
-                    current_codepage = Encoding.GetEncoding(932);
+                    current_codepage = Encoding.GetEncoding((int)PackageEncodings.SHIFT_JIS);
                     break;
                 default:
-                    current_codepage = Encoding.GetEncoding(65001);
+                    current_codepage = Encoding.GetEncoding((int)PackageEncodings.UTF_8);
                     break;
 
             }
-            if (current_codepage != myPackage.encoding)
+            if (current_codepage != MainApp.Instance.currentPackage.EncodingPage)
             {
-                myPackage.encoding = current_codepage;
-                if (myPackage.fileName != null)
+                MainApp.Instance.currentPackage.EncodingPage = current_codepage;
+                if (MainApp.Instance.currentPackage.FileName != null)
                 {
-
-                    beginLoadCPK(myPackage.fileName);
+                    var fName = MainApp.Instance.currentPackage.FileName;
+                    BeginLoadCPKAsync(fName, () =>
+                    {
+                        CpkWrapper cpk = new CpkWrapper(fName);
+                        status_cpkmsg.Content = string.Format("{0} file(s) registered.", cpk.nums);
+                        datagrid_cpk.ItemsSource = cpk.table;
+                        menu_importAssets.IsEnabled = true;
+                        menu_savefiles.IsEnabled = true;
+                    });
                 }
 
             }
-            
-            
-
         }
     }
 }

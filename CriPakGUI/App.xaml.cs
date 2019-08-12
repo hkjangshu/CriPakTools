@@ -12,5 +12,9 @@ namespace CriPakGUI
     /// </summary>
     public partial class App : Application
     {
+        public App()
+        {
+            MainApp.Instance.Initialize();
+        }
     }
 }

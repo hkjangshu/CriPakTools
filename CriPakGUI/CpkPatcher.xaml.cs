@@ -37,7 +37,7 @@ namespace CriPakGUI
         private void button_selPatchPath_Click(object sender, RoutedEventArgs e)
         {
             VistaFolderBrowserDialog saveFilesDialog = new VistaFolderBrowserDialog();
-            saveFilesDialog.SelectedPath = myPackage.basePath + "/";
+            saveFilesDialog.SelectedPath = MainApp.Instance.currentPackage.BasePath + "/";
             if (saveFilesDialog.ShowDialog().Value)
             {
                 Debug.Print(saveFilesDialog.SelectedPath);
@@ -46,12 +46,12 @@ namespace CriPakGUI
 
         }
 
-        
+
 
         private void button_selDstCPK_Click(object sender, RoutedEventArgs e)
         {
             VistaSaveFileDialog saveDialog = new VistaSaveFileDialog();
-            saveDialog.InitialDirectory = myPackage.basePath;
+            saveDialog.InitialDirectory = MainApp.Instance.currentPackage.BasePath;
             saveDialog.RestoreDirectory = true;
             saveDialog.Filter = "CPK File（*.cpk）|*.cpk";
             if (saveDialog.ShowDialog() == true)
@@ -87,7 +87,7 @@ namespace CriPakGUI
             string patchDir = textbox_patchDir.Text;
             Dictionary<string, string> batch_file_list = new Dictionary<string, string>();
             List<string> ls = new List<string>();
-            if ((myPackage.cpk != null) && (Directory.Exists(patchDir)))
+            if ((MainApp.Instance.currentPackage.CpkContent != null) && (Directory.Exists(patchDir)))
             {
 
                 GetFilesFromPath(patchDir, ref ls);
@@ -95,7 +95,7 @@ namespace CriPakGUI
                 foreach (string s in ls)
                 {
                     string name = s.Remove(0, patchDir.Length + 1);
-                    name = name.Replace("\\" , @"/");
+                    name = name.Replace("\\", @"/");
                     if (!name.Contains(@"/"))
                     {
                         name = @"/" + name;
@@ -125,13 +125,13 @@ namespace CriPakGUI
 
         private void PatchCPK(object t)
         {
-            string msg; 
+            string msg;
             string cpkDir = ((actionCPK)t).cpkDir;
             string patchDir = ((actionCPK)t).patchDir;
             bool bForceCompress = ((actionCPK)t).bForceCompress;
             Dictionary<string, string> batch_file_list = ((actionCPK)t).batch_file_list;
-            CPK cpk = myPackage.cpk;
-            BinaryReader oldFile = new BinaryReader(File.OpenRead(myPackage.cpk_name));
+            CPK cpk = MainApp.Instance.currentPackage.CpkContent;
+            BinaryReader oldFile = new BinaryReader(File.OpenRead(MainApp.Instance.currentPackage.CpkContentName));
             string outputName = cpkDir;
 
             BinaryWriter newCPK = new BinaryWriter(File.OpenWrite(outputName));
@@ -174,7 +174,7 @@ namespace CriPakGUI
                         currentName = ((entries[i].DirName != null) ? entries[i].DirName + "/" : "") + entries[i].FileName;
                     }
 
-                     
+
 
                     if (!currentName.Contains("/"))
                     {
@@ -215,7 +215,7 @@ namespace CriPakGUI
                     }
                     else
                     {
-                        
+
                         string replace_with = batch_file_list[currentName.ToString()];
                         //Got patch file name
                         msg = string.Format("Patching: {0}", currentName.ToString());
@@ -310,7 +310,7 @@ namespace CriPakGUI
             this.Dispatcher.Invoke(new textblockDelegate(updateTextblock), new object[] { msg });
         }
 
-        private void  GetFilesFromPath(string directoryname , ref List<string> ls)
+        private void GetFilesFromPath(string directoryname, ref List<string> ls)
         {
             FileInfo[] fi = new DirectoryInfo(directoryname).GetFiles();
             DirectoryInfo[] di = new DirectoryInfo(directoryname).GetDirectories();
@@ -325,7 +325,7 @@ namespace CriPakGUI
             {
                 foreach (DirectoryInfo v in di)
                 {
-                    GetFilesFromPath(v.FullName , ref ls);
+                    GetFilesFromPath(v.FullName, ref ls);
 
                 }
             }

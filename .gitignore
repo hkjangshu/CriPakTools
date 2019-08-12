@@ -194,3 +194,5 @@ ModelManifest.xml
 *.cpk
 /.vs/CriPakTools/v15
 /LibCRIComp/ReadMe.txt
+
+\.vs/

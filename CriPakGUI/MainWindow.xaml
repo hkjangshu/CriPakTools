@@ -1,7 +1,7 @@
 ﻿<Window x:Class="CriPakGUI.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Criware CriPak GUI" Height="360" Width="640" ResizeMode="CanResizeWithGrip" SizeToContent="WidthAndHeight" MinWidth="640" MinHeight="358" Icon="Resources/1.ico" MaxHeight="640">
+        Title="CRIWARE CPK GUI" Height="360" Width="640" ResizeMode="CanResizeWithGrip" SizeToContent="WidthAndHeight" MinWidth="640" MinHeight="358" Icon="Resources/1.ico" MaxHeight="640">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="0*"/>
@@ -49,22 +49,6 @@
                 </ComboBox>
 
             </MenuItem>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
-            <Separator Margin="0"/>
             <MenuItem Header="About" HorizontalContentAlignment="Right" HorizontalAlignment="Right" FlowDirection="RightToLeft" Width="50">
                 <MenuItem x:Name="menu_aboutgui" Header="About CriPak GUI" Click="menu_aboutgui_Click" />
             </MenuItem>
@@ -86,9 +70,9 @@
                 </ContextMenu>
             </DataGrid.ContextMenu>
         </DataGrid>
-        <Grid Grid.ColumnSpan="3" Height="37" Margin="0,25,0,0" VerticalAlignment="Top" Background="{DynamicResource {x:Static SystemColors.MenuBarBrushKey}}">
+        <Grid Grid.ColumnSpan="3" Height="36" Margin="0,25,0,0" VerticalAlignment="Top" Background="{DynamicResource {x:Static SystemColors.MenuBarBrushKey}}">
             <Button x:Name="button_importassets" Content="Patch CPK" HorizontalAlignment="Left" Margin="142,10,0,0" VerticalAlignment="Top" Width="86" IsEnabled="False" Click="button_importassets_Click"/>
-            <Button x:Name="button_extract" Content="Extract me!" HorizontalAlignment="Left" Margin="37,10,0,0" VerticalAlignment="Top" Width="86" IsEnabled="False" Click="button_extract_Click"/>
+            <Button x:Name="button_extract" Content="Extract Files" HorizontalAlignment="Left" Margin="37,10,0,0" VerticalAlignment="Top" Width="86" IsEnabled="False" Click="button_extract_Click"/>
             
         </Grid>
     </Grid>
