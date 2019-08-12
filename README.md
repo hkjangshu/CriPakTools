@@ -1,6 +1,6 @@
 CriPakTools-mod
 ===========
-This tool is based on of code by Falo , Nanashi3 ,esperknight and uyjulian
+This tool is based on code by Falo , Nanashi3 ,esperknight and uyjulian
 I forked and added more features.
 
 * Add Shift-JIS support for CPK files.
