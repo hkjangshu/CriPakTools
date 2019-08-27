@@ -1144,6 +1144,7 @@ namespace LibCPK
 
         }
 
+       
         public bool ReadUTF(EndianReader br ,Encoding encoding = null)
         {
             long offset = br.BaseStream.Position;
@@ -1185,45 +1186,7 @@ namespace LibCPK
                 column.name = Tools.ReadCString(br, -1, (long)(br.ReadInt32() + strings_offset), encoding);
                 if ((column.flags & (int)UTF.COLUMN_FLAGS.STORAGE_MASK) == (int)UTF.COLUMN_FLAGS.STORAGE_CONSTANT)
                 {
-                    column.type = column.flags & (int)UTF.COLUMN_FLAGS.TYPE_MASK;
-                    column.position = br.BaseStream.Position;
-                    switch (column.type)
-                    {
-                        case 0:
-                        case 1:
-                            column.uint8 = br.ReadByte();
-                            break;
-                        case 2:
-                        case 3:
-                            column.uint16 = br.ReadUInt16();
-                            break;
-
-                        case 4:
-                        case 5:
-                            column.uint32 = br.ReadUInt32();
-                            break;
-
-                        case 6:
-                        case 7:
-                            column.uint64 = br.ReadUInt64();
-
-                            break;
-
-                        case 8:
-                            column.ufloat = br.ReadSingle();
-                            break;
-
-                        case 0xA:
-                            column.str = Tools.ReadCString(br, -1, br.ReadInt32() + strings_offset);
-
-                            break;
-
-                        case 0xB:
-                            long position = br.ReadInt32() + data_offset;
-                            column.position = position;
-                            column.data = Tools.GetData(br, position, br.ReadInt32());
-                            break;
-                    }
+                    column.UpdateTypedData(br, column.flags, strings_offset, data_offset, encoding);
                 }
                 columns.Add(column);
             }
@@ -1264,54 +1227,18 @@ namespace LibCPK
                         current_entry.rows.Add(current_row);
                         continue;
                     }
-
-                    // 0x50
-
-                    current_row.type = columns[i].flags & (int)COLUMN_FLAGS.TYPE_MASK;
-
-                    current_row.position = br.BaseStream.Position;
-
-                    switch (current_row.type)
+                    if (storage_flag == (int)COLUMN_FLAGS.STORAGE_PERROW)
                     {
-                        case (int)E_StructTypes.DATA_TYPE_UINT8:
-                        case (int)E_StructTypes.DATA_TYPE_UINT8_1:
-                            current_row.uint8 = br.ReadByte();
-                            break;
+                        // 0x50
 
-                        case (int)E_StructTypes.DATA_TYPE_UINT16:
-                        case (int)E_StructTypes.DATA_TYPE_UINT16_1:
-                            current_row.uint16 = br.ReadUInt16();
-                            break;
+                        current_row.type = columns[i].flags & (int)COLUMN_FLAGS.TYPE_MASK;
 
-                        case (int)E_StructTypes.DATA_TYPE_UINT32:
-                        case (int)E_StructTypes.DATA_TYPE_UINT32_1:
-                            current_row.uint32 = br.ReadUInt32();
-                            break;
+                        current_row.position = br.BaseStream.Position;
 
-                        case (int)E_StructTypes.DATA_TYPE_UINT64:
-                        case (int)E_StructTypes.DATA_TYPE_UINT64_1:
-                            current_row.uint64 = br.ReadUInt64();
-                            break;
+                        current_row.UpdateTypedData(br, columns[i].flags, strings_offset, data_offset, encoding);
 
-                        case (int)E_StructTypes.DATA_TYPE_FLOAT:
-                            current_row.ufloat = br.ReadSingle();
-                            break;
-
-                        case (int)E_StructTypes.DATA_TYPE_STRING:
-                            current_row.str = Tools.ReadCString(br, -1, br.ReadInt32() + strings_offset , encoding);
-                            break;
-
-                        case (int)E_StructTypes.DATA_TYPE_BYTEARRAY:
-                            long position = br.ReadInt32() + data_offset;
-                            current_row.position = position;
-                            current_row.data = Tools.GetData(br, position, br.ReadInt32());
-                            break;
-
-                        default: throw new NotImplementedException();
+                        current_entry.rows.Add(current_row);
                     }
-
-
-                    current_entry.rows.Add(current_row);
                 }
 
                 rows.Add(current_entry);
@@ -1412,6 +1339,51 @@ namespace LibCPK
                 default: return null;
             }
         }
+
+        public void UpdateTypedData(EndianReader br, int flags, long strings_offset, long data_offset, Encoding encoding)
+        {
+            int type = flags & (int)UTF.COLUMN_FLAGS.TYPE_MASK;
+            this.type = type;
+            this.position = br.BaseStream.Position;
+            switch (type)
+            {
+                case (int)E_StructTypes.DATA_TYPE_UINT8:
+                case (int)E_StructTypes.DATA_TYPE_UINT8_1:
+                    this.uint8 = br.ReadByte();
+                    break;
+                case (int)E_StructTypes.DATA_TYPE_UINT16:
+                case (int)E_StructTypes.DATA_TYPE_UINT16_1:
+                    this.uint16 = br.ReadUInt16();
+                    break;
+
+                case (int)E_StructTypes.DATA_TYPE_UINT32:
+                case (int)E_StructTypes.DATA_TYPE_UINT32_1:
+                    this.uint32 = br.ReadUInt32();
+                    break;
+
+                case (int)E_StructTypes.DATA_TYPE_UINT64:
+                case (int)E_StructTypes.DATA_TYPE_UINT64_1:
+                    this.uint64 = br.ReadUInt64();
+
+                    break;
+
+                case (int)E_StructTypes.DATA_TYPE_FLOAT:
+                    this.ufloat = br.ReadSingle();
+                    break;
+
+                case 0xA:
+                    this.str = Tools.ReadCString(br, -1, br.ReadInt32() + strings_offset, encoding);
+
+                    break;
+
+                case (int)E_StructTypes.DATA_TYPE_BYTEARRAY:
+                    long position = br.ReadInt32() + data_offset;
+                    this.position = position;
+                    this.data = Tools.GetData(br, position, br.ReadInt32());
+                    break;
+            }
+        }
+
 
         //column based datatypes
         public byte uint8 { get; set; }
