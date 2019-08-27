@@ -136,9 +136,7 @@ namespace CriPakGUI
 
             BinaryWriter newCPK = new BinaryWriter(File.OpenWrite(outputName));
 
-            List<FileEntry> entries = cpk.FileTable.OrderBy(x => x.FileOffset).ToList();
-
-            Tools tool = new Tools();
+            List<FileEntry> entries = cpk.fileTable.OrderBy(x => x.FileOffset).ToList();
 
             int id;
             bool bFileRepeated = Tools.CheckListRedundant(entries);
@@ -280,7 +278,7 @@ namespace CriPakGUI
             cpk.WriteCPK(newCPK);
             msg = string.Format("Writing TOC....");
             this.UI_SetTextBlock(msg);
-            Console.WriteLine(msg);
+            Debug.Print(msg);
 
             cpk.WriteITOC(newCPK);
             cpk.WriteTOC(newCPK);
@@ -291,7 +289,7 @@ namespace CriPakGUI
             oldFile.Close();
             msg = string.Format("Saving CPK to {0}....", outputName);
             this.UI_SetTextBlock(msg);
-            Console.WriteLine(msg);
+            Debug.Print(msg);
 
             MessageBox.Show("CPK Patched.");
             this.UI_SetProgess(0f);

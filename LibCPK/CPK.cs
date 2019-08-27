@@ -5,23 +5,21 @@ using System.Text;
 using System.IO;
 using System.Runtime.InteropServices;
 using LibCRIComp;
+using System.Diagnostics;
 
 namespace LibCPK
 {
     public class CPK
     {
-        public List<FileEntry> FileTable;
+        public List<FileEntry> fileTable = new List<FileEntry>();
         public Dictionary<string, object> cpkdata;
         public UTF utf;
-
-        Tools tools;
         UTF files;
 
-        public CPK(Tools tool)
+        public CPK()
         {
-            tools = tool;
             isUtfEncrypted = false;
-            FileTable = new List<FileEntry>();
+            
         }
 
         public bool ReadCPK(string sPath, Encoding encoding = null)
@@ -35,7 +33,7 @@ namespace LibCPK
                 MemoryStream ms;
                 EndianReader utfr;
 
-                if (tools.ReadCString(br, 4) != "CPK ")
+                if (Tools.ReadCString(br, 4) != "CPK ")
                 {
                     br.Close();
                     return false;
@@ -54,12 +52,12 @@ namespace LibCPK
                     FileType = "CPK"
                 };
 
-                FileTable.Add(CPAK_entry);
+                fileTable.Add(CPAK_entry);
 
                 ms = new MemoryStream(utf_packet);
                 utfr = new EndianReader(ms, false);
 
-                utf = new UTF(tools);
+                utf = new UTF();
                 if (!utf.ReadUTF(utfr, encoding))
                 {
                     br.Close();
@@ -81,32 +79,32 @@ namespace LibCPK
                 catch (Exception ex)
                 {
                     //MessageBox.Show(ex.ToString());
-                    Console.WriteLine(ex.ToString());
+                    Debug.Print(ex.ToString());
                 }
 
-                TocOffset = (ulong)GetColumsData2(utf, 0, "TocOffset", 3);
+                TocOffset = (ulong)GetColumsData(utf, 0, "TocOffset", E_ColumnDataType.DATA_TYPE_UINT64);
                 long TocOffsetPos = GetColumnPostion(utf, 0, "TocOffset");
 
-                EtocOffset = (ulong)GetColumsData2(utf, 0, "EtocOffset", 3);
+                EtocOffset = (ulong)GetColumsData(utf, 0, "EtocOffset", E_ColumnDataType.DATA_TYPE_UINT64);
                 long ETocOffsetPos = GetColumnPostion(utf, 0, "EtocOffset");
 
-                ItocOffset = (ulong)GetColumsData2(utf, 0, "ItocOffset", 3);
+                ItocOffset = (ulong)GetColumsData(utf, 0, "ItocOffset", E_ColumnDataType.DATA_TYPE_UINT64);
                 long ITocOffsetPos = GetColumnPostion(utf, 0, "ItocOffset");
 
-                GtocOffset = (ulong)GetColumsData2(utf, 0, "GtocOffset", 3);
+                GtocOffset = (ulong)GetColumsData(utf, 0, "GtocOffset", E_ColumnDataType.DATA_TYPE_UINT64);
                 long GTocOffsetPos = GetColumnPostion(utf, 0, "GtocOffset");
 
-                ContentOffset = (ulong)GetColumsData2(utf, 0, "ContentOffset", 3);
+                ContentOffset = (ulong)GetColumsData(utf, 0, "ContentOffset", E_ColumnDataType.DATA_TYPE_UINT64);
                 long ContentOffsetPos = GetColumnPostion(utf, 0, "ContentOffset");
-                FileTable.Add(CreateFileEntry("CONTENT_OFFSET", ContentOffset, typeof(ulong), ContentOffsetPos, "CPK", "CONTENT", false));
+                fileTable.Add(CreateFileEntry("CONTENT_OFFSET", ContentOffset, typeof(ulong), ContentOffsetPos, "CPK", "CONTENT", false));
 
-                Files = (uint)GetColumsData2(utf, 0, "Files", 2);
-                Align = (ushort)GetColumsData2(utf, 0, "Align", 1);
+                Files = (uint)GetColumsData(utf, 0, "Files", E_ColumnDataType.DATA_TYPE_UINT32);
+                Align = (ushort)GetColumsData(utf, 0, "Align", E_ColumnDataType.DATA_TYPE_USHORT);
 
                 if (TocOffset != 0xFFFFFFFFFFFFFFFF)
                 {
                     FileEntry entry = CreateFileEntry("TOC_HDR", TocOffset, typeof(ulong), TocOffsetPos, "CPK", "HDR", false);
-                    FileTable.Add(entry);
+                    fileTable.Add(entry);
 
                     if (!ReadTOC(br, TocOffset, ContentOffset, encoding))
                         return false;
@@ -115,7 +113,7 @@ namespace LibCPK
                 if (EtocOffset != 0xFFFFFFFFFFFFFFFF)
                 {
                     FileEntry entry = CreateFileEntry("ETOC_HDR", EtocOffset, typeof(ulong), ETocOffsetPos, "CPK", "HDR", false);
-                    FileTable.Add(entry);
+                    fileTable.Add(entry);
 
                     if (!ReadETOC(br, EtocOffset))
                         return false;
@@ -131,7 +129,7 @@ namespace LibCPK
                     //};
 
                     FileEntry entry = CreateFileEntry("ITOC_HDR", ItocOffset, typeof(ulong), ITocOffsetPos, "CPK", "HDR", false);
-                    FileTable.Add(entry);
+                    fileTable.Add(entry);
 
                     if (!ReadITOC(br, ItocOffset, ContentOffset, Align))
                         return false;
@@ -140,7 +138,7 @@ namespace LibCPK
                 if (GtocOffset != 0xFFFFFFFFFFFFFFFF)
                 {
                     FileEntry entry = CreateFileEntry("GTOC_HDR", GtocOffset, typeof(ulong), GTocOffsetPos, "CPK", "HDR", false);
-                    FileTable.Add(entry);
+                    fileTable.Add(entry);
 
                     if (!ReadGTOC(br, GtocOffset))
                         return false;
@@ -199,7 +197,7 @@ namespace LibCPK
 
             br.BaseStream.Seek((long)TocOffset, SeekOrigin.Begin);
 
-            if (tools.ReadCString(br, 4) != "TOC ")
+            if (Tools.ReadCString(br, 4) != "TOC ")
             {
                 br.Close();
                 return false;
@@ -210,14 +208,14 @@ namespace LibCPK
             // Store unencrypted TOC
             TOC_packet = utf_packet;
 
-            FileEntry toc_entry = FileTable.Where(x => x.FileName.ToString() == "TOC_HDR").Single();
+            FileEntry toc_entry = fileTable.Where(x => x.FileName.ToString() == "TOC_HDR").Single();
             toc_entry.Encrypted = isUtfEncrypted;
             toc_entry.FileSize = TOC_packet.Length;
 
             MemoryStream ms = new MemoryStream(utf_packet);
             EndianReader utfr = new EndianReader(ms, false);
 
-            files = new UTF(tools);
+            files = new UTF();
             if (!files.ReadUTF(utfr, encoding))
             {
                 br.Close();
@@ -256,7 +254,7 @@ namespace LibCPK
                 temp.ID = GetColumnData(files, i, "ID");
                 temp.UserString = GetColumnData(files, i, "UserString");
 
-                FileTable.Add(temp);
+                fileTable.Add(temp);
             }
             files = null;
 
@@ -323,7 +321,7 @@ namespace LibCPK
         {
             br.BaseStream.Seek((long)startoffset, SeekOrigin.Begin);
 
-            if (tools.ReadCString(br, 4) != "ITOC")
+            if (Tools.ReadCString(br, 4) != "ITOC")
             {
                 br.Close();
                 return false;
@@ -333,14 +331,14 @@ namespace LibCPK
 
             ITOC_packet = utf_packet;
 
-            FileEntry itoc_entry = FileTable.Where(x => x.FileName.ToString() == "ITOC_HDR").Single();
+            FileEntry itoc_entry = fileTable.Where(x => x.FileName.ToString() == "ITOC_HDR").Single();
             itoc_entry.Encrypted = isUtfEncrypted;
             itoc_entry.FileSize = ITOC_packet.Length;
 
             MemoryStream ms = new MemoryStream(utf_packet);
             EndianReader utfr = new EndianReader(ms, false);
 
-            files = new UTF(tools);
+            files = new UTF();
             if (!files.ReadUTF(utfr))
             {
                 br.Close();
@@ -350,8 +348,6 @@ namespace LibCPK
             utfr.Close();
             ms.Close();
 
-            //uint FilesL = (uint)GetColumnData(files, 0, "FilesL");
-            //uint FilesH = (uint)GetColumnData(files, 0, "FilesH");
             byte[] DataL = (byte[])GetColumnData(files, 0, "DataL");
             long DataLPos = GetColumnPostion(files, 0, "DataL");
 
@@ -384,7 +380,7 @@ namespace LibCPK
             {
                 ms = new MemoryStream(DataL);
                 utfr = new EndianReader(ms, false);
-                utfDataL = new UTF(tools);
+                utfDataL = new UTF();
                 utfDataL.ReadUTF(utfr);
 
                 for (int i = 0; i < utfDataL.num_rows; i++)
@@ -419,7 +415,7 @@ namespace LibCPK
             {
                 ms = new MemoryStream(DataH);
                 utfr = new EndianReader(ms, false);
-                utfDataH = new UTF(tools);
+                utfDataH = new UTF();
                 utfDataH.ReadUTF(utfr);
 
                 for (int i = 0; i < utfDataH.num_rows; i++)
@@ -490,7 +486,7 @@ namespace LibCPK
                 temp.ID = id;
                 temp.UserString = null;
 
-                FileTable.Add(temp);
+                fileTable.Add(temp);
 
                 if ((value % Align) > 0)
                     baseoffset += value + (Align - (value % Align));
@@ -534,17 +530,16 @@ namespace LibCPK
         {
             br.BaseStream.Seek((long)startoffset, SeekOrigin.Begin);
 
-            if (tools.ReadCString(br, 4) != "GTOC")
+            if (Tools.ReadCString(br, 4) != "GTOC")
             {
                 br.Close();
                 return false;
             }
 
-            //br.BaseStream.Seek(0xC, SeekOrigin.Current); //skip header data
             ReadUTFData(br);
 
             GTOC_packet = utf_packet;
-            FileEntry gtoc_entry = FileTable.Where(x => x.FileName.ToString() == "GTOC_HDR").Single();
+            FileEntry gtoc_entry = fileTable.Where(x => x.FileName.ToString() == "GTOC_HDR").Single();
             gtoc_entry.Encrypted = isUtfEncrypted;
             gtoc_entry.FileSize = GTOC_packet.Length;
 
@@ -556,7 +551,7 @@ namespace LibCPK
         {
             br.BaseStream.Seek((long)startoffset, SeekOrigin.Begin);
 
-            if (tools.ReadCString(br, 4) != "ETOC")
+            if (Tools.ReadCString(br, 4) != "ETOC")
             {
                 br.Close();
                 return false;
@@ -568,14 +563,14 @@ namespace LibCPK
 
             ETOC_packet = utf_packet;
 
-            FileEntry etoc_entry = FileTable.Where(x => x.FileName.ToString() == "ETOC_HDR").Single();
+            FileEntry etoc_entry = fileTable.Where(x => x.FileName.ToString() == "ETOC_HDR").Single();
             etoc_entry.Encrypted = isUtfEncrypted;
             etoc_entry.FileSize = ETOC_packet.Length;
 
             MemoryStream ms = new MemoryStream(utf_packet);
             EndianReader utfr = new EndianReader(ms, false);
 
-            files = new UTF(tools);
+            files = new UTF();
             if (!files.ReadUTF(utfr))
             {
                 br.Close();
@@ -585,14 +580,14 @@ namespace LibCPK
             utfr.Close();
             ms.Close();
 
-            List<FileEntry> fileEntries = FileTable.Where(x => x.FileType == "FILE").ToList();
+            List<FileEntry> fileEntries = fileTable.Where(x => x.FileType == "FILE").ToList();
 
             for (int i = 0; i < fileEntries.Count; i++)
             {
-                FileTable[i].LocalDir = GetColumnData(files, i, "LocalDir");
+                fileTable[i].LocalDir = GetColumnData(files, i, "LocalDir");
                 var tUpdateDateTime = GetColumnData(files, i, "UpdateDateTime");
                 if (tUpdateDateTime == null) tUpdateDateTime = 0;
-                FileTable[i].UpdateDateTime = (ulong)tUpdateDateTime;
+                fileTable[i].UpdateDateTime = (ulong)tUpdateDateTime;
             }
 
             return true;
@@ -619,112 +614,7 @@ namespace LibCPK
             return result;
         }
 
-        /*unsafe public int CRICompress(byte* dest, int* destLen, byte* src, int srcLen)
-        {
-            int n = srcLen - 1, m = *destLen - 0x1, T = 0, d = 0;
-
-            int p, q = 0, i, j, k;
-            byte* odest = dest;
-            for (; n >= 0x100; )
-            {
-                j = n + 3 + 0x2000;
-                if (j > srcLen) j = srcLen;
-                for (i = n + 3, p = 0; i < j; i++)
-                {
-                    for (k = 0; k <= n - 0x100; k++)
-                    {
-                        if (*(src + n - k) != *(src + i - k)) break;
-                    }
-                    if (k > p)
-                    {
-                        q = i - n - 3;
-                        p = k;
-                    }
-                }
-                if (p < 3)
-                {
-                    d = (d << 9) | (*(src + n--));
-                    T += 9;
-                }
-                else
-                {
-                    d = (((d << 1) | 1) << 13) | q;
-
-                    T += 14; n -= p;
-                    if (p < 6)
-                    {
-                        d = (d << 2) | (p - 3); T += 2;
-                    }
-                    else if (p < 13)
-                    {
-                        d = (((d << 2) | 3) << 3) | (p - 6); T += 5;
-                    }
-                    else if (p < 44)
-                    {
-                        d = (((d << 5) | 0x1f) << 5) | (p - 13); T += 10;
-                    }
-                    else
-                    {
-                        d = ((d << 10) | 0x3ff); T += 10; p -= 44;
-                        for (; ; )
-                        {
-                            for (; T >= 8; )
-                            {
-                                *(dest + m--) = (byte)((d >> (T - 8)) & 0xff);
-                                T -= 8; d = d & ((1 << T) - 1);
-                            }
-                            if (p < 255) break;
-                            d = (d << 8) | 0xff; T += 8; p = p - 0xff;
-                        }
-                        d = (d << 8) | p; T += 8;
-                    }
-                }
-                for (; T >= 8; )
-                {
-                    *(dest + m--) = (byte)((d >> (T - 8)) & 0xff);
-                    T -= 8;
-                    d = d & ((1 << T) - 1);
-                }
-            }
-            if (T != 0)
-            {
-                *(dest + m--) = (byte)(d << (8 - T));
-            }
-
-            *(dest + m--) = 0; *(dest + m) = 0;
-            for (; ; )
-            {
-                if (((*destLen - m) & 3) == 0) break;
-                *(dest + m--) = 0;
-            }
-
-            *destLen = *destLen - m;
-            dest += m;
-
-            int[] l = { 0x4c495243, 0x414c5941, srcLen - 0x100, *destLen };
-
-            for (j = 0; j < 4; j++)
-            {
-                for (i = 0; i < 4; i++)
-                {
-                    *(odest + i + j * 4) = (byte)(l[j] & 0xff);
-                    l[j] >>= 8;
-                }
-            }
-            for (j = 0, odest += 0x10; j < *destLen; j++)
-            {
-                *(odest++) = *(dest + j);
-            }
-            for (j = 0; j < 0x100; j++)
-            {
-                *(odest++) = *(src + j);
-            }
-            *destLen += 0x110;
-
-            return *destLen;
-        }*/
-        // unsafe指针在.NET 4.5下似乎很不稳定，有时出现“尝试读取或写入受保护的内存， 这通常指示其它内存已损坏”的错误
-        // 目前将CRICompress方法移动到了CLR类库中使用。
+      
         unsafe public byte[] CompressCRILAYLA(byte[] input)
         {
             unsafe
@@ -741,23 +631,6 @@ namespace LibCPK
                 } 
             }
             
-            /*unsafe
-            {
-
-                int destLength = (int)input.Length;
-                fixed (byte* src = input)
-                fixed (byte* dest = new byte[input.Length])
-                {
-
-                    destLength = CRICompress(dest, &destLength, src, input.Length);
-                    byte[] arr = new byte[destLength];
-                    Marshal.Copy((IntPtr)dest, arr, 0, destLength);
-
-                    
-                    return arr;
-                }
-            }*/
-
         }
 
         public byte[] DecompressCRILAYLA(byte[] input, int USize)
@@ -931,7 +804,15 @@ namespace LibCPK
             return out_bits;
         }
 
-        public object GetColumsData2(UTF utf, int row, string Name, int type)
+        public enum E_ColumnDataType
+        {
+            DATA_TYPE_BYTE = 0,
+            DATA_TYPE_USHORT = 1,
+            DATA_TYPE_UINT32 = 2,
+            DATA_TYPE_UINT64 = 3,
+        }
+
+        public object GetColumsData(UTF utf, int row, string Name, E_ColumnDataType type)
         {
             object Temp = GetColumnData(utf, row, Name);
 
@@ -939,13 +820,13 @@ namespace LibCPK
             {
                 switch (type)
                 {
-                    case 0: // byte
+                    case E_ColumnDataType.DATA_TYPE_BYTE: // byte
                         return (byte)0xFF;
-                    case 1: // short
+                    case E_ColumnDataType.DATA_TYPE_USHORT: // short
                         return (ushort)0xFFFF;
-                    case 2: // int
+                    case E_ColumnDataType.DATA_TYPE_UINT32: // int
                         return 0xFFFFFFFF;
-                    case 3: // long
+                    case E_ColumnDataType.DATA_TYPE_UINT64: // long
                         return 0xFFFFFFFFFFFFFFFF;
                 }
             }
@@ -965,10 +846,15 @@ namespace LibCPK
                 return (Temp == null) ? (ushort)0xFFFF : (ushort)Temp;
             }
 
+            if (Temp is byte)
+            {
+                return (Temp == null) ? (byte)0xFF : (byte)Temp;
+            }
+
             return 0;
         }
 
-        public object GetColumnData(UTF utf, int row, string Name)
+        private object GetColumnData(UTF utf, int row, string pName)
         {
             object result = null;
 
@@ -976,7 +862,23 @@ namespace LibCPK
             {
                 for (int i = 0; i < utf.num_columns; i++)
                 {
-                    if (utf.columns[i].name == Name)
+                    int storageFlag = utf.columns[i].flags & (int)UTF.COLUMN_FLAGS.STORAGE_MASK;
+                    int columnType = utf.columns[i].flags & (int)UTF.COLUMN_FLAGS.TYPE_MASK;
+                    if (storageFlag == (int)UTF.COLUMN_FLAGS.STORAGE_CONSTANT)
+                    {
+                        if (utf.columns[i].name == pName)
+                        {
+                            result = utf.columns[i].GetValue();
+                            break;
+                        }
+                    }
+
+                    if (storageFlag == (int)UTF.COLUMN_FLAGS.STORAGE_NONE || storageFlag == (int)UTF.COLUMN_FLAGS.STORAGE_ZERO)
+                    {
+                        continue;
+                    }
+
+                    if (utf.columns[i].name == pName)
                     {
                         result = utf.rows[row].rows[i].GetValue();
                         break;
@@ -986,7 +888,7 @@ namespace LibCPK
             catch (Exception ex)
             {
 
-                Console.WriteLine(ex.ToString());
+                Debug.Print(ex.ToString());
                 return null;
             }
 
@@ -995,7 +897,7 @@ namespace LibCPK
             return result;
         }
 
-        public long GetColumnPostion(UTF utf, int row, string Name)
+        public long GetColumnPostion(UTF utf, int row, string pName)
         {
             long result = -1;
 
@@ -1003,7 +905,23 @@ namespace LibCPK
             {
                 for (int i = 0; i < utf.num_columns; i++)
                 {
-                    if (utf.columns[i].name == Name)
+                    int storageFlag = utf.columns[i].flags & (int)UTF.COLUMN_FLAGS.STORAGE_MASK;
+                    int columnType = utf.columns[i].flags & (int)UTF.COLUMN_FLAGS.TYPE_MASK;
+                    if (storageFlag == (int)UTF.COLUMN_FLAGS.STORAGE_CONSTANT)
+                    {
+                        if (utf.columns[i].name == pName)
+                        {
+                            result = utf.columns[i].position;
+                            break;
+                        }
+                    }
+
+                    if (storageFlag == (int)UTF.COLUMN_FLAGS.STORAGE_NONE || storageFlag == (int)UTF.COLUMN_FLAGS.STORAGE_ZERO)
+                    {
+                        continue;
+                    }
+
+                    if (utf.columns[i].name == pName)
                     {
                         result = utf.rows[row].rows[i].position;
                         break;
@@ -1012,15 +930,14 @@ namespace LibCPK
             }
             catch (Exception ex)
             {
-                //MessageBox.Show(ex.ToString());
-                Console.WriteLine(ex.ToString());
+                Debug.Print(ex.ToString());
                 return -1;
             }
 
             return result;
         }
 
-        public Type GetColumnType(UTF utf, int row, string Name)
+        public Type GetColumnType(UTF utf, int row, string pName)
         {
             Type result = null;
 
@@ -1028,7 +945,22 @@ namespace LibCPK
             {
                 for (int i = 0; i < utf.num_columns; i++)
                 {
-                    if (utf.columns[i].name == Name)
+                    int storageFlag = utf.columns[i].flags & (int)UTF.COLUMN_FLAGS.STORAGE_MASK;
+                    int columnType = utf.columns[i].flags & (int)UTF.COLUMN_FLAGS.TYPE_MASK;
+                    if (storageFlag == (int)UTF.COLUMN_FLAGS.STORAGE_CONSTANT)
+                    {
+                        if (utf.columns[i].name == pName)
+                        {
+                            result = utf.columns[i].GetType();
+                            break;
+                        }
+                    }
+
+                    if (storageFlag == (int)UTF.COLUMN_FLAGS.STORAGE_NONE || storageFlag == (int)UTF.COLUMN_FLAGS.STORAGE_ZERO)
+                    {
+                        continue;
+                    }
+                    if (utf.columns[i].name == pName)
                     {
                         result = utf.rows[row].rows[i].GetType();
                         break;
@@ -1037,8 +969,7 @@ namespace LibCPK
             }
             catch (Exception ex)
             {
-                //MessageBox.Show(ex.ToString());
-                Console.WriteLine(ex.ToString());
+                Debug.Print(ex.ToString());
                 return null;
             }
 
@@ -1068,8 +999,7 @@ namespace LibCPK
                         updateMe = GTOC_packet;
                         break;
                     default:
-                        throw new Exception("I need to implement this TOC!");
-
+                        break;
                 }
 
 
@@ -1110,7 +1040,7 @@ namespace LibCPK
                         updateMe = GTOC_packet;
                         break;
                     default:
-                        throw new Exception("I need to implement this TOC!");
+                        break;
 
                 }
             }
@@ -1172,6 +1102,25 @@ namespace LibCPK
         public ulong TocOffset, EtocOffset, ItocOffset, GtocOffset, ContentOffset;
     }
 
+
+    [Flags]
+    public enum E_StructTypes : int
+    {
+        DATA_TYPE_UINT8 = 0,
+        DATA_TYPE_UINT8_1 = 1,
+        DATA_TYPE_UINT16 = 2,
+        DATA_TYPE_UINT16_1 = 3,
+        DATA_TYPE_UINT32 = 4,
+        DATA_TYPE_UINT32_1 = 5,
+        DATA_TYPE_UINT64 = 6,
+        DATA_TYPE_UINT64_1 = 7,
+        DATA_TYPE_FLOAT = 8,
+        DATA_TYPE_STRING = 0xA,
+        DATA_TYPE_BYTEARRAY = 0xB,
+        DATA_TYPE_MASK = 0xf,
+        DATA_TYPE_NONE = -1,
+    }
+
     public class UTF
     {
         public enum COLUMN_FLAGS : int
@@ -1182,36 +1131,24 @@ namespace LibCPK
             STORAGE_CONSTANT = 0x30,
             STORAGE_PERROW = 0x50,
 
-
             TYPE_MASK = 0x0f,
-            TYPE_DATA = 0x0b,
-            TYPE_STRING = 0x0a,
-            TYPE_FLOAT = 0x08,
-            TYPE_8BYTE2 = 0x07,
-            TYPE_8BYTE = 0x06,
-            TYPE_4BYTE2 = 0x05,
-            TYPE_4BYTE = 0x04,
-            TYPE_2BYTE2 = 0x03,
-            TYPE_2BYTE = 0x02,
-            TYPE_1BYTE2 = 0x01,
-            TYPE_1BYTE = 0x00,
         }
+
+
 
         public List<COLUMN> columns;
         public List<ROWS> rows;
 
-        Tools tools;
-
-        public UTF(Tools tool)
+        public UTF()
         {
-            tools = tool;
+
         }
 
         public bool ReadUTF(EndianReader br ,Encoding encoding = null)
         {
             long offset = br.BaseStream.Position;
 
-            if (tools.ReadCString(br, 4) != "@UTF")
+            if (Tools.ReadCString(br, 4) != "@UTF")
             {
                 return false;
             }
@@ -1245,7 +1182,49 @@ namespace LibCPK
                     column.flags = br.ReadByte();
                 }
 
-                column.name = tools.ReadCString(br, -1, (long)(br.ReadInt32() + strings_offset), encoding);
+                column.name = Tools.ReadCString(br, -1, (long)(br.ReadInt32() + strings_offset), encoding);
+                if ((column.flags & (int)UTF.COLUMN_FLAGS.STORAGE_MASK) == (int)UTF.COLUMN_FLAGS.STORAGE_CONSTANT)
+                {
+                    column.type = column.flags & (int)UTF.COLUMN_FLAGS.TYPE_MASK;
+                    column.position = br.BaseStream.Position;
+                    switch (column.type)
+                    {
+                        case 0:
+                        case 1:
+                            column.uint8 = br.ReadByte();
+                            break;
+                        case 2:
+                        case 3:
+                            column.uint16 = br.ReadUInt16();
+                            break;
+
+                        case 4:
+                        case 5:
+                            column.uint32 = br.ReadUInt32();
+                            break;
+
+                        case 6:
+                        case 7:
+                            column.uint64 = br.ReadUInt64();
+
+                            break;
+
+                        case 8:
+                            column.ufloat = br.ReadSingle();
+                            break;
+
+                        case 0xA:
+                            column.str = Tools.ReadCString(br, -1, br.ReadInt32() + strings_offset);
+
+                            break;
+
+                        case 0xB:
+                            long position = br.ReadInt32() + data_offset;
+                            column.position = position;
+                            column.data = Tools.GetData(br, position, br.ReadInt32());
+                            break;
+                    }
+                }
                 columns.Add(column);
             }
 
@@ -1294,38 +1273,38 @@ namespace LibCPK
 
                     switch (current_row.type)
                     {
-                        case 0:
-                        case 1:
+                        case (int)E_StructTypes.DATA_TYPE_UINT8:
+                        case (int)E_StructTypes.DATA_TYPE_UINT8_1:
                             current_row.uint8 = br.ReadByte();
                             break;
 
-                        case 2:
-                        case 3:
+                        case (int)E_StructTypes.DATA_TYPE_UINT16:
+                        case (int)E_StructTypes.DATA_TYPE_UINT16_1:
                             current_row.uint16 = br.ReadUInt16();
                             break;
 
-                        case 4:
-                        case 5:
+                        case (int)E_StructTypes.DATA_TYPE_UINT32:
+                        case (int)E_StructTypes.DATA_TYPE_UINT32_1:
                             current_row.uint32 = br.ReadUInt32();
                             break;
 
-                        case 6:
-                        case 7:
+                        case (int)E_StructTypes.DATA_TYPE_UINT64:
+                        case (int)E_StructTypes.DATA_TYPE_UINT64_1:
                             current_row.uint64 = br.ReadUInt64();
                             break;
 
-                        case 8:
+                        case (int)E_StructTypes.DATA_TYPE_FLOAT:
                             current_row.ufloat = br.ReadSingle();
                             break;
 
-                        case 0xA:
-                            current_row.str = tools.ReadCString(br, -1, br.ReadInt32() + strings_offset , encoding);
+                        case (int)E_StructTypes.DATA_TYPE_STRING:
+                            current_row.str = Tools.ReadCString(br, -1, br.ReadInt32() + strings_offset , encoding);
                             break;
 
-                        case 0xB:
+                        case (int)E_StructTypes.DATA_TYPE_BYTEARRAY:
                             long position = br.ReadInt32() + data_offset;
                             current_row.position = position;
-                            current_row.data = tools.GetData(br, position, br.ReadInt32());
+                            current_row.data = Tools.GetData(br, position, br.ReadInt32());
                             break;
 
                         default: throw new NotImplementedException();
@@ -1352,15 +1331,20 @@ namespace LibCPK
         public int num_rows { get; set; }
     }
 
-    public class COLUMN
+
+    public class COLUMN: TypeData
     {
         public COLUMN()
         {
         }
 
+        
         public byte flags { get; set; }
         public string name { get; set; }
+
+        
     }
+
 
     public class ROWS
     {
@@ -1372,38 +1356,30 @@ namespace LibCPK
         }
     }
 
-    public class ROW
+    public abstract class TypeData
     {
-        public ROW()
-        {
-            type = -1;
-        }
-
-        public int type { get; set; }
-
+        public int type = -1;
         public object GetValue()
         {
-            object result = -1;
-
             switch (this.type)
             {
-                case 0:
-                case 1: return this.uint8;
+                case (int)E_StructTypes.DATA_TYPE_UINT8:
+                case (int)E_StructTypes.DATA_TYPE_UINT8_1: return this.uint8;
 
-                case 2:
-                case 3: return this.uint16;
+                case (int)E_StructTypes.DATA_TYPE_UINT16:
+                case (int)E_StructTypes.DATA_TYPE_UINT16_1: return this.uint16;
 
-                case 4:
-                case 5: return this.uint32;
+                case (int)E_StructTypes.DATA_TYPE_UINT32:
+                case (int)E_StructTypes.DATA_TYPE_UINT32_1: return this.uint32;
 
-                case 6:
-                case 7: return this.uint64;
+                case (int)E_StructTypes.DATA_TYPE_UINT64:
+                case (int)E_StructTypes.DATA_TYPE_UINT64_1: return this.uint64;
 
-                case 8: return this.ufloat;
+                case (int)E_StructTypes.DATA_TYPE_FLOAT: return this.ufloat;
 
-                case 0xA: return this.str;
+                case (int)E_StructTypes.DATA_TYPE_STRING: return this.str;
 
-                case 0xB: return this.data;
+                case (int)E_StructTypes.DATA_TYPE_BYTEARRAY: return this.data;
 
                 default: return null;
             }
@@ -1415,23 +1391,23 @@ namespace LibCPK
 
             switch (this.type)
             {
-                case 0:
-                case 1: return this.uint8.GetType();
+                case (int)E_StructTypes.DATA_TYPE_UINT8:
+                case (int)E_StructTypes.DATA_TYPE_UINT8_1: return this.uint8.GetType();
 
-                case 2:
-                case 3: return this.uint16.GetType();
+                case (int)E_StructTypes.DATA_TYPE_UINT16:
+                case (int)E_StructTypes.DATA_TYPE_UINT16_1: return this.uint16.GetType();
 
-                case 4:
-                case 5: return this.uint32.GetType();
+                case (int)E_StructTypes.DATA_TYPE_UINT32:
+                case (int)E_StructTypes.DATA_TYPE_UINT32_1: return this.uint32.GetType();
 
-                case 6:
-                case 7: return this.uint64.GetType();
+                case (int)E_StructTypes.DATA_TYPE_UINT64:
+                case (int)E_StructTypes.DATA_TYPE_UINT64_1: return this.uint64.GetType();
 
-                case 8: return this.ufloat.GetType();
+                case (int)E_StructTypes.DATA_TYPE_FLOAT: return this.ufloat.GetType();
 
-                case 0xA: return this.str.GetType();
+                case (int)E_StructTypes.DATA_TYPE_STRING: return this.str.GetType();
 
-                case 0xB: return this.data.GetType();
+                case (int)E_StructTypes.DATA_TYPE_BYTEARRAY: return this.data.GetType();
 
                 default: return null;
             }
@@ -1446,6 +1422,16 @@ namespace LibCPK
         public string str { get; set; }
         public byte[] data { get; set; }
         public long position { get; set; }
+    }
+
+
+    public class ROW : TypeData
+    {
+        public ROW()
+        {
+            
+        }
+
     }
 
     public class FileEntry

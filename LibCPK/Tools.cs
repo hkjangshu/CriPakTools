@@ -7,17 +7,8 @@ using System.Runtime.InteropServices;
 
 namespace LibCPK
 {
-    public class Tools
+    public static class Tools
     {
-
-        [DllImport("msvcrt.dll", CallingConvention = CallingConvention.Cdecl)]
-        static extern int memcmp(byte[] b1, byte[] b2, long count);
-
-        public Tools()
-        {
-
-        }
-
         public static bool CheckListRedundant(List<FileEntry> input)
         {
 
@@ -40,7 +31,7 @@ namespace LibCPK
             return result;
         }
 
-        public Dictionary<string, string> ReadBatchScript(string batch_script_name)
+        public static Dictionary<string, string> ReadBatchScript(string batch_script_name)
         {
             //---------------------
             // TXT内部
@@ -70,7 +61,7 @@ namespace LibCPK
             return flist;
         }
 
-        public string ReadCString(BinaryReader br, int MaxLength = -1, long lOffset = -1, Encoding enc = null)
+        public static string ReadCString(BinaryReader br, int MaxLength = -1, long lOffset = -1, Encoding enc = null)
         {
             int Max;
             if (MaxLength == -1)
@@ -126,18 +117,18 @@ namespace LibCPK
             return result;
         }
 
-        public void DeleteFileIfExists(string sPath)
+        public static void DeleteFileIfExists(string sPath)
         {
             if (File.Exists(sPath))
                 File.Delete(sPath);
         }
 
-        public string GetPath(string input)
+        public static string GetPath(string input)
         {
             return Path.GetDirectoryName(input) + "\\" + Path.GetFileNameWithoutExtension(input);
         }
 
-        public byte[] GetData(BinaryReader br, long offset, int size)
+        public static byte[] GetData(BinaryReader br, long offset, int size)
         {
             byte[] result = null;
             long backup = br.BaseStream.Position;

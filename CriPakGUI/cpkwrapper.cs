@@ -41,17 +41,45 @@ namespace CriPakGUI
 
         public int nums = 0;
         public List<CPKTable> table;
-        
+        public bool IsVaidCPK { get; private set; } = false;
+
+        private bool CheckValid(string path)
+        {
+            bool result = false;
+            using (FileStream fs = File.OpenRead(path))
+            {
+                using (BinaryReader br = new BinaryReader(fs))
+                {
+                    br.BaseStream.Seek(0, SeekOrigin.Begin);
+                    uint magic = br.ReadUInt32();
+                    if (magic == 0x204b5043)
+                    {
+                        result = true;
+                    }
+                    else
+                    {
+                        result = false;
+                    }
+                }
+            }
+            return result;
+        }
+
         public CpkWrapper(string inFile)
         {
+            IsVaidCPK = CheckValid(inFile);
+            if (IsVaidCPK == false)
+            {
+                return;
+            }
             string cpk_name = inFile;
             table = new List<CPKTable>();
-            MainApp.Instance.currentPackage.CpkContent = new CPK(new Tools());
+            MainApp.Instance.currentPackage.CpkContent = new CPK();
             MainApp.Instance.currentPackage.CpkContent.ReadCPK(cpk_name, MainApp.Instance.currentPackage.EncodingPage);
             MainApp.Instance.currentPackage.CpkContentName = cpk_name;
 
             BinaryReader oldFile = new BinaryReader(File.OpenRead(cpk_name));
-            List<FileEntry> entries = MainApp.Instance.currentPackage.CpkContent.FileTable.OrderBy(x => x.FileOffset).ToList();
+            List<FileEntry> entries = MainApp.Instance.currentPackage.CpkContent.fileTable.OrderBy(x => x.FileOffset).ToList();
             int i = 0;
             bool bFileRepeated = Tools.CheckListRedundant(entries);
             while (i < entries.Count)

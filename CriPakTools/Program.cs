@@ -157,14 +157,14 @@ namespace CriPakTools
 
             string cpk_name = inFile;
 
-            CPK cpk = new CPK(new Tools());
+            CPK cpk = new CPK();
             cpk.ReadCPK(cpk_name, SystemEncoding.Codecs);
 
             BinaryReader oldFile = new BinaryReader(File.OpenRead(cpk_name));
 
             if (doDisplay)
             {
-                List<FileEntry> entries = cpk.FileTable.OrderBy(x => x.FileOffset).ToList();
+                List<FileEntry> entries = cpk.fileTable.OrderBy(x => x.FileOffset).ToList();
                 for (int i = 0; i < entries.Count; i++)
                 {
                     Console.WriteLine("FILE ID:{0},File Name:{1},File Type:{5},FileOffset:{2:x8},Extract Size:{3:x8},Chunk Size:{4:x8}", entries[i].ID, 
@@ -184,7 +184,7 @@ namespace CriPakTools
 
                 List<FileEntry> entries = null;
 
-                entries = cpk.FileTable.Where(x => x.FileType == "FILE").ToList();
+                entries = cpk.fileTable.Where(x => x.FileType == "FILE").ToList();
 
                 if (entries.Count == 0)
                 {
@@ -246,10 +246,9 @@ namespace CriPakTools
 
                 BinaryWriter newCPK = new BinaryWriter(File.OpenWrite(outputName));
 
-                List<FileEntry> entries = cpk.FileTable.OrderBy(x => x.FileOffset).ToList();
+                List<FileEntry> entries = cpk.fileTable.OrderBy(x => x.FileOffset).ToList();
 
-                Tools tool = new Tools();
-                Dictionary<string, string> batch_file_list = tool.ReadBatchScript(batch_text_name);
+                Dictionary<string, string> batch_file_list = Tools.ReadBatchScript(batch_text_name);
                 for (int i = 0; i < entries.Count; i++)
                 {
                     if (entries[i].FileType != "CONTENT")
@@ -381,7 +380,7 @@ namespace CriPakTools
 
                 BinaryWriter newCPK = new BinaryWriter(File.OpenWrite(outputName));
 
-                List<FileEntry> entries = cpk.FileTable.OrderBy(x => x.FileOffset).ToList();
+                List<FileEntry> entries = cpk.fileTable.OrderBy(x => x.FileOffset).ToList();
 
                 for (int i = 0; i < entries.Count; i++)
                 {
@@ -479,7 +478,7 @@ namespace CriPakTools
 
                 newCPK.Close();
                 oldFile.Close();
-
+                GC.Collect();
             }
         }
     }

@@ -53,11 +53,19 @@ namespace CriPakGUI
                 button_importassets.IsEnabled = true;
                 BeginLoadCPKAsync(fName, () =>
                 {
+
                     CpkWrapper cpk = new CpkWrapper(fName);
-                    status_cpkmsg.Content = string.Format("{0} file(s) registered.", cpk.nums);
-                    datagrid_cpk.ItemsSource = cpk.table;
-                    menu_importAssets.IsEnabled = true;
-                    menu_savefiles.IsEnabled = true;
+                    if (cpk.IsVaidCPK == true)
+                    {
+                        status_cpkmsg.Content = string.Format("{0} file(s) registered.", cpk.nums);
+                        datagrid_cpk.ItemsSource = cpk.table;
+                        menu_importAssets.IsEnabled = true;
+                        menu_savefiles.IsEnabled = true;
+                    }
+                    else
+                    {
+                        status_cpkmsg.Content = string.Format("Not a valid cpk.");
+                    }
                 });
             }
         }
@@ -140,7 +148,7 @@ namespace CriPakGUI
                 BinaryReader oldFile = new BinaryReader(File.OpenRead(MainApp.Instance.currentPackage.CpkContentName));
                 List<FileEntry> entries = null;
 
-                entries = MainApp.Instance.currentPackage.CpkContent.FileTable.Where(x => x.FileType == "FILE").ToList();
+                entries = MainApp.Instance.currentPackage.CpkContent.fileTable.Where(x => x.FileType == "FILE").ToList();
 
                 if (entries.Count == 0)
                 {
@@ -157,7 +165,7 @@ namespace CriPakGUI
 
                 while (i < entries.Count)
                 {
-                    this.Dispatcher.Invoke(new progressbarDelegate(updateprogressbar), new object[] { (float)i / (float)entries.Count * 100f });//异步委托
+                    this.Dispatcher.Invoke(new progressbarDelegate(updateprogressbar), new object[] { (float)i / (float)entries.Count * 100f });
 
                     if (!String.IsNullOrEmpty((string)entries[i].DirName))
                     {
@@ -213,8 +221,8 @@ namespace CriPakGUI
                 oldFile.Close();
                 this.Dispatcher.Invoke(new progressbarDelegate(updateprogressbar), new object[] { 100f });
                 this.Dispatcher.Invoke(new datagridDelegate(updateDatagrid), new object[] { (bool)true });
+                GC.Collect();
                 MessageBox.Show("Extraction Complete.");
-
             }
 
         }
