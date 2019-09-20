@@ -121,13 +121,6 @@ namespace LibCPK
 
                 if (ItocOffset != 0xFFFFFFFFFFFFFFFF)
                 {
-                    //FileEntry ITOC_entry = new FileEntry { 
-                    //    FileName = "ITOC_HDR",
-                    //    FileOffset = ItocOffset, FileOffsetType = typeof(ulong), FileOffsetPos = ITocOffsetPos,
-                    //    TOCName = "CPK",
-                    //    FileType = "FILE", Encrypted = true,
-                    //};
-
                     FileEntry entry = CreateFileEntry("ITOC_HDR", ItocOffset, typeof(ulong), ITocOffsetPos, "CPK", "HDR", false);
                     fileTable.Add(entry);
 
@@ -166,6 +159,7 @@ namespace LibCPK
                 TOCName = TOCName,
                 FileType = FileType,
                 Encrypted = encrypted,
+                Offset = 0,
             };
 
             return entry;
@@ -285,9 +279,9 @@ namespace LibCPK
             WritePacket(cpk, "ITOC", ItocOffset, ITOC_packet);
         }
 
-        public void WriteETOC(BinaryWriter cpk, ulong currentEtocOffset)
+        public void WriteETOC(BinaryWriter cpk)
         {
-            WritePacket(cpk, "ETOC", currentEtocOffset, ETOC_packet);
+            WritePacket(cpk, "ETOC", EtocOffset, ETOC_packet);
         }
 
         public void WriteGTOC(BinaryWriter cpk)
@@ -1013,9 +1007,9 @@ namespace LibCPK
 
                 //Update FileOffset
                 if (fileEntry.FileOffsetPos > 0)
-                    if (fileEntry.TOCName == "TOC")
+                    if (fileEntry.TOCName == "TOC" && fileEntry.FileType == "FILE")
                     {
-                        UpdateValue(ref updateMe, fileEntry.FileOffset - (ulong)TocOffset, fileEntry.FileOffsetPos, fileEntry.FileOffsetType);
+                        UpdateValue(ref updateMe, fileEntry.FileOffset - (ulong)fileEntry.Offset, fileEntry.FileOffsetPos, fileEntry.FileOffsetType);
                     }
                     else
                     {

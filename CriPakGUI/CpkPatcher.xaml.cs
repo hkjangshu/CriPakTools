@@ -73,7 +73,7 @@ namespace CriPakGUI
         {
             progressbar1.Value = no;
         }
-        public class actionCPK
+        public class CPKPatchInfo
         {
             public string cpkDir { get; set; }
             public string patchDir { get; set; }
@@ -102,7 +102,7 @@ namespace CriPakGUI
                     }
                     batch_file_list.Add(name, s);
                 }
-                actionCPK t = new actionCPK();
+                CPKPatchInfo t = new CPKPatchInfo();
                 t.cpkDir = cpkDir;
                 t.patchDir = patchDir;
                 if (checkbox_donotcompress.IsChecked == true)
@@ -125,176 +125,22 @@ namespace CriPakGUI
 
         private void PatchCPK(object t)
         {
-            string msg;
-            string cpkDir = ((actionCPK)t).cpkDir;
-            string patchDir = ((actionCPK)t).patchDir;
-            bool bForceCompress = ((actionCPK)t).bForceCompress;
-            Dictionary<string, string> batch_file_list = ((actionCPK)t).batch_file_list;
-            CPK cpk = MainApp.Instance.currentPackage.CpkContent;
-            BinaryReader oldFile = new BinaryReader(File.OpenRead(MainApp.Instance.currentPackage.CpkContentName));
-            string outputName = cpkDir;
-
-            BinaryWriter newCPK = new BinaryWriter(File.OpenWrite(outputName));
-
-            List<FileEntry> entries = cpk.fileTable.OrderBy(x => x.FileOffset).ToList();
-
-            int id;
-            bool bFileRepeated = Tools.CheckListRedundant(entries);
-            for (int i = 0; i < entries.Count; i++)
+            CPKPatchInfo v = (CPKPatchInfo)t;
+            PatchCPK patcher = new PatchCPK(MainApp.Instance.currentPackage.CpkContent, MainApp.Instance.currentPackage.CpkContentName);
+            patcher.SetListener(
+                (float value) =>
             {
-                this.UI_SetProgess((float)i / (float)entries.Count * 100f);
-                if (entries[i].FileType != "CONTENT")
+                UI_SetProgess(value);
+            }, 
+                (string msg)=> 
                 {
-
-                    if (entries[i].FileType == "FILE")
-                    {
-                        // I'm too lazy to figure out how to update the ContextOffset position so this works :)
-                        if ((ulong)newCPK.BaseStream.Position < cpk.ContentOffset)
-                        {
-                            ulong padLength = cpk.ContentOffset - (ulong)newCPK.BaseStream.Position;
-                            for (ulong z = 0; z < padLength; z++)
-                            {
-                                newCPK.Write((byte)0);
-                            }
-                        }
-                    }
-
-                    id = Convert.ToInt32(entries[i].ID);
-                    string currentName;
-
-                    if (id > 0 && bFileRepeated)
-                    {
-                        currentName = (((entries[i].DirName != null) ?
-                                        entries[i].DirName + "/" : "") + string.Format("[{0}]", id.ToString()) + entries[i].FileName);
-                    }
-                    else
-                    {
-                        currentName = ((entries[i].DirName != null) ? entries[i].DirName + "/" : "") + entries[i].FileName;
-                    }
-
-
-
-                    if (!currentName.Contains("/"))
-                    {
-                        currentName = "/" + currentName;
-                    }
-                    Debug.Print("Got File:" + currentName.ToString());
-
-                    if (!batch_file_list.Keys.Contains(currentName.ToString()))
-                    //如果不在表中，复制原始数据
-                    {
-                        oldFile.BaseStream.Seek((long)entries[i].FileOffset, SeekOrigin.Begin);
-
-                        entries[i].FileOffset = (ulong)newCPK.BaseStream.Position;
-
-                        if (entries[i].FileName.ToString() == "ETOC_HDR")
-                        {
-
-                            cpk.EtocOffset = entries[i].FileOffset;
-
-                            Debug.Print("Fix ETOC_OFFSET to {0:x8}", cpk.EtocOffset);
-
-                        }
-
-                        cpk.UpdateFileEntry(entries[i]);
-
-                        byte[] chunk = oldFile.ReadBytes(Int32.Parse(entries[i].FileSize.ToString()));
-                        newCPK.Write(chunk);
-
-                        if ((newCPK.BaseStream.Position % 0x800) > 0 && i < entries.Count - 1)
-                        {
-                            long cur_pos = newCPK.BaseStream.Position;
-                            for (int j = 0; j < (0x800 - (cur_pos % 0x800)); j++)
-                            {
-                                newCPK.Write((byte)0);
-                            }
-                        }
-
-                    }
-                    else
-                    {
-
-                        string replace_with = batch_file_list[currentName.ToString()];
-                        //Got patch file name
-                        msg = string.Format("Patching: {0}", currentName.ToString());
-
-                        this.UI_SetTextBlock(msg);
-                        Debug.Print(msg);
-
-                        byte[] newbie = File.ReadAllBytes(replace_with);
-                        entries[i].FileOffset = (ulong)newCPK.BaseStream.Position;
-                        int o_ext_size = Int32.Parse((entries[i].ExtractSize).ToString());
-                        int o_com_size = Int32.Parse((entries[i].FileSize).ToString());
-                        if ((o_com_size < o_ext_size) && entries[i].FileType == "FILE" && bForceCompress == true)
-                        {
-                            // is compressed
-                            msg = string.Format("Compressing data:{0:x8}", newbie.Length);
-                            this.UI_SetTextBlock(msg);
-                            Console.Write(msg);
-
-                            byte[] dest_comp = cpk.CompressCRILAYLA(newbie);
-
-                            entries[i].FileSize = Convert.ChangeType(dest_comp.Length, entries[i].FileSizeType);
-                            entries[i].ExtractSize = Convert.ChangeType(newbie.Length, entries[i].FileSizeType);
-                            cpk.UpdateFileEntry(entries[i]);
-                            newCPK.Write(dest_comp);
-                            msg = string.Format(">> {0:x8}\r\n", dest_comp.Length);
-                            this.UI_SetTextBlock(msg);
-                            Console.Write(msg);
-                        }
-
-                        else
-                        {
-                            msg = string.Format("Storing data:{0:x8}\r\n", newbie.Length);
-                            this.UI_SetTextBlock(msg);
-                            Console.Write(msg);
-
-                            entries[i].FileSize = Convert.ChangeType(newbie.Length, entries[i].FileSizeType);
-                            entries[i].ExtractSize = Convert.ChangeType(newbie.Length, entries[i].FileSizeType);
-                            cpk.UpdateFileEntry(entries[i]);
-                            newCPK.Write(newbie);
-                        }
-
-
-                        if ((newCPK.BaseStream.Position % 0x800) > 0 && i < entries.Count - 1)
-                        {
-                            long cur_pos = newCPK.BaseStream.Position;
-                            for (int j = 0; j < (0x800 - (cur_pos % 0x800)); j++)
-                            {
-                                newCPK.Write((byte)0);
-                            }
-                        }
-                    }
-
-
-                }
-                else
-                {
-                    // Content is special.... just update the position
-                    cpk.UpdateFileEntry(entries[i]);
-                }
-            }
-
-            cpk.WriteCPK(newCPK);
-            msg = string.Format("Writing TOC....");
-            this.UI_SetTextBlock(msg);
-            Debug.Print(msg);
-
-            cpk.WriteITOC(newCPK);
-            cpk.WriteTOC(newCPK);
-            cpk.WriteETOC(newCPK, cpk.EtocOffset);
-            cpk.WriteGTOC(newCPK);
-
-            newCPK.Close();
-            oldFile.Close();
-            msg = string.Format("Saving CPK to {0}....", outputName);
-            this.UI_SetTextBlock(msg);
-            Debug.Print(msg);
-
-            MessageBox.Show("CPK Patched.");
-            this.UI_SetProgess(0f);
-
-
+                UI_SetTextBlock(msg);
+                }, 
+                ()=> {
+                MessageBox.Show("CPK Patched.");
+                this.UI_SetProgess(0f);
+            });
+            patcher.Patch(v.cpkDir, v.bForceCompress, v.batch_file_list);
 
         }
 

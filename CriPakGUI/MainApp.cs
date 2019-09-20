@@ -8,7 +8,7 @@ namespace CriPakGUI
 {
     public class MainApp
     {
-        public const string BuildTime = "BuildData 20190827";
+        public const string BuildTime = "BuildData 20190920";
         private MainApp()
         {
 
