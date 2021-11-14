@@ -84,6 +84,9 @@ namespace CriPakGUI
             bool bFileRepeated = Tools.CheckListRedundant(entries);
             while (i < entries.Count)
             {
+                Console.WriteLine(entries[i].DirName == null);
+                Console.WriteLine(entries[i].FileName);
+
                 /*
                 Console.WriteLine("FILE ID:{0},File Name:{1},File Type:{5},FileOffset:{2:x8},Extract Size:{3:x8},Chunk Size:{4:x8}", entries[i].ID,
                                                             (((entries[i].DirName != null) ? entries[i].DirName + "/" : "") + entries[i].FileName),
@@ -92,8 +95,8 @@ namespace CriPakGUI
                                                             entries[i].FileSize,
                                                             entries[i].FileType);
                 */
-                
-                
+
+
                 if (entries[i].FileType != null)
                 {
                     nums += 1;
@@ -109,15 +112,34 @@ namespace CriPakGUI
                     }
                     if (t.TableId >= 0 && bFileRepeated)
                     {
-                        t.FileName = (((entries[i].DirName != null) ? 
-                                        entries[i].DirName + "/" : "") + string.Format("[{0}]",t.TableId.ToString()) + entries[i].FileName);
+                        if (((string)entries[i].DirName) == "<NULL>" && ((string)entries[i].FileName) == "<NULL>")
+                        {
+                            t.FileName = t.TableId.ToString() + ".bin";
+                        } else {
+                            t.FileName = ((entries[i].DirName != null) ?
+                                            entries[i].DirName + "/" : "") + string.Format("[{0}]", t.TableId.ToString()) + entries[i].FileName;
+                        }
                     }
                     else
                     {
-                        t.FileName = (((entries[i].DirName != null) ?
-                                        entries[i].DirName + "/" : "") +  entries[i].FileName);
+                        if (((string)entries[i].DirName) == "<NULL>" && ((string)entries[i].FileName) == "<NULL>")
+                        {
+                            t.FileName = t.TableId.ToString() + ".bin";
+                        }
+                        else
+                        {
+                            t.FileName = ((entries[i].DirName != null) ?
+                                        entries[i].DirName + "/" : "") + entries[i].FileName;
+                        }
                     }
-                    t.LocalName = entries[i].FileName.ToString();
+                    if (((string)entries[i].FileName) == "<NULL>")
+                    {
+                        t.LocalName = t.TableId.ToString() + ".bin";
+                    }
+                    else
+                    {
+                        t.LocalName = entries[i].FileName.ToString();
+                    }
 
                     t.FileOffset = Convert.ToUInt64(entries[i].FileOffset);
                     t.FileSize = Convert.ToInt32(entries[i].FileSize);

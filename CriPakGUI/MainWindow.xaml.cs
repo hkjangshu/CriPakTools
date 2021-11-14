@@ -137,6 +137,7 @@ namespace CriPakGUI
         }
         private void beginExtractCPK_internal(object fOutDir)
         {
+
             string outDir;
             outDir = (string)(fOutDir + "/" + MainApp.Instance.currentPackage.BaseName + "_unpacked");
             if (MainApp.Instance.currentPackage.CpkContent != null)
@@ -167,7 +168,7 @@ namespace CriPakGUI
                 {
                     this.Dispatcher.Invoke(new progressbarDelegate(updateprogressbar), new object[] { (float)i / (float)entries.Count * 100f });
 
-                    if (!String.IsNullOrEmpty((string)entries[i].DirName))
+                    if (!String.IsNullOrEmpty((string)entries[i].DirName) && ((string)entries[i].DirName) != "<NULL>")
                     {
                         Directory.CreateDirectory(outDir + "/" + entries[i].DirName.ToString());
                     }
@@ -175,14 +176,30 @@ namespace CriPakGUI
                     id = Convert.ToInt32(entries[i].ID);
                     if (id > 0 && bFileRepeated)
                     {
-                        currentName = (((entries[i].DirName != null) ?
-                                        entries[i].DirName + "/" : "") + string.Format("[{0}]", id.ToString()) + entries[i].FileName);
+                        if (((string)entries[i].DirName) == "<NULL>" && ((string)entries[i].FileName) == "<NULL>")
+                        {
+                            currentName = id + ".bin";
+                        }
+                        else
+                        {
+                            currentName = ((entries[i].DirName != null) ?
+                                            entries[i].DirName + "/" : "") + string.Format("[{0}]", id.ToString()) + entries[i].FileName;
+                        }
+
                         currentName = currentName.TrimStart('/');
                     }
                     else
                     {
-                        currentName = ((entries[i].DirName != null) ? entries[i].DirName + "/" : "") + entries[i].FileName;
+                        if (((string)entries[i].DirName) == "<NULL>" && ((string)entries[i].FileName) == "<NULL>")
+                        {
+                            currentName = id + ".bin";
+                        }
+                        else
+                        {
+                            currentName = ((entries[i].DirName != null) ? entries[i].DirName + "/" : "") + entries[i].FileName;
+                        }
                         currentName = currentName.TrimStart('/');
+ 
                     }
 
                     oldFile.BaseStream.Seek((long)entries[i].FileOffset, SeekOrigin.Begin);
@@ -243,8 +260,6 @@ namespace CriPakGUI
         {
             CpkPatcher patcherWindow = new CpkPatcher(this.Top, this.Left);
             patcherWindow.ShowDialog();
-
-
         }
 
         private void menu_aboutgui_Click(object sender, RoutedEventArgs e)

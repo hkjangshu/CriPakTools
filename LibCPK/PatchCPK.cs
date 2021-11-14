@@ -51,12 +51,30 @@ namespace LibCPK
 
                     if (id > 0 && bFileRepeated)
                     {
-                        currentName = (((entries[i].DirName != null) ?
-                                        entries[i].DirName + "/" : "") + string.Format("[{0}]", id.ToString()) + entries[i].FileName);
+
+                        if (((string)entries[i].DirName) == "<NULL>" && ((string)entries[i].FileName) == "<NULL>")
+                        {
+                            currentName = id + ".bin";
+                        }
+                        else
+                        {
+
+                            currentName = (((entries[i].DirName != null) ?
+                                            entries[i].DirName + "/" : "") + string.Format("[{0}]", id.ToString()) + entries[i].FileName);
+                        }
                     }
                     else
                     {
-                        currentName = ((entries[i].DirName != null) ? entries[i].DirName + "/" : "") + entries[i].FileName;
+                        if (((string)entries[i].DirName) == "<NULL>" && ((string)entries[i].FileName) == "<NULL>")
+                        {
+                            currentName = id + ".bin";
+                        }
+                        else
+                        {
+
+                            currentName = ((entries[i].DirName != null) ? entries[i].DirName + "/" : "") + entries[i].FileName;
+
+                        }
                     }
                     if (!currentName.Contains("/"))
                     {

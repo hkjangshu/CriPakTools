@@ -303,11 +303,13 @@ namespace LibCPK
                 {
                     encrypted = packet;
                 }
-                 
-                cpk.Write(Encoding.ASCII.GetBytes(ID));
-                cpk.Write((Int32)0xff);
-                cpk.Write((UInt64)encrypted.Length);
-                cpk.Write(encrypted);
+                if (encrypted != null)
+                {
+                    cpk.Write(Encoding.ASCII.GetBytes(ID));
+                    cpk.Write((Int32)0xff);
+                    cpk.Write((UInt64)encrypted.Length);
+                    cpk.Write(encrypted);
+                }
             }
         }
 
